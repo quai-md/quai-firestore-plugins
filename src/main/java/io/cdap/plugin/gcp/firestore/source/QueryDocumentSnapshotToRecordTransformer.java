@@ -16,6 +16,12 @@
 
 package io.cdap.plugin.gcp.firestore.source;
 
+import com.google.firestore.v1.Value;
+import io.cdap.plugin.gcp.firestore.source.util.FirestoreUtils;
+import io.cdap.plugin.gcp.firestore.source.util.SchemaUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.google.cloud.firestore.QueryDocumentSnapshot;
 import io.cdap.cdap.api.data.format.StructuredRecord;
 import io.cdap.cdap.api.data.format.UnexpectedFormatException;
@@ -25,11 +31,13 @@ import java.nio.ByteBuffer;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.annotation.Nullable;
+
 
 /**
  * Transforms {@link QueryDocumentSnapshot} to {@link StructuredRecord}.
@@ -38,6 +46,7 @@ public class QueryDocumentSnapshotToRecordTransformer {
   private final Schema schema;
   private final Boolean includeDocumentId;
   private final String idAlias;
+  private static final Logger LOG = LoggerFactory.getLogger(QueryDocumentSnapshotToRecordTransformer.class);
 
   /**
    * Constructor for QueryDocumentSnapshotToRecordTransformer object.
@@ -58,12 +67,15 @@ public class QueryDocumentSnapshotToRecordTransformer {
    * @return {@link StructuredRecord} that corresponds to the given {@link QueryDocumentSnapshot}.
    */
   public StructuredRecord transform(QueryDocumentSnapshot queryDocumentSnapshot) {
-    return convertRecord(null, queryDocumentSnapshot, schema);
+      return convertRecord(null, queryDocumentSnapshot, schema);
   }
 
-  private StructuredRecord convertRecord(@Nullable String fieldName, QueryDocumentSnapshot object, Schema schema) {
-    StructuredRecord.Builder builder = StructuredRecord.builder(schema);
-    List<Schema.Field> fields = Objects.requireNonNull(schema.getFields(), "Schema fields cannot be empty");
+  private StructuredRecord convertRecord(@Nullable String fieldName, QueryDocumentSnapshot object, Schema originalSchema) {
+    Schema adjustedSchema = SchemaUtils.adjustSchemaForStringifiedFields(originalSchema);
+    StructuredRecord.Builder builder = StructuredRecord.builder(adjustedSchema);
+    List<Schema.Field> fields = Objects.requireNonNull(originalSchema.getFields(), "Schema fields cannot be empty");
+    Map<String,Value> rawFields = FirestoreUtils.getRawFields(object);
+
     for (Schema.Field field : fields) {
       if (includeDocumentId && idAlias.equals(field.getName())) {
         builder.set(field.getName(), object.getId());
@@ -75,7 +87,20 @@ public class QueryDocumentSnapshotToRecordTransformer {
 
         Schema nonNullableSchema = field.getSchema().isNullable() ? field.getSchema().getNonNullable()
           : field.getSchema();
+
+        Schema.Type fieldType = nonNullableSchema.getType();
         Object value = extractValue(fullFieldName, object.get(field.getName()), nonNullableSchema);
+
+        // At the moment we will strigify all array and object values arriving from firestore due to infra limitations
+        if(fieldType == Schema.Type.RECORD || fieldType == Schema.Type.ARRAY || fieldType == Schema.Type.MAP) {
+            Value rawValue = rawFields.get(field.getName());
+            if (rawValue != null) {
+                // Stringify the raw Firestore Value for complex types
+                value = FirestoreUtils.stringifyFirestoreValue(rawValue);
+                LOG.debug(value.toString());
+            }
+        }
+
         if (!field.getSchema().isNullable() && value == null) {
           builder.set(field.getName(), "");
         } else {

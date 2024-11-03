@@ -20,7 +20,7 @@
 
   <groupId>io.cdap.plugin</groupId>
   <artifactId>quai-firestore-plugin</artifactId>
-  <version>1.1.4</version>
+  <version>1.1.13</version>
   <name>Quai Firestore Plugin</name>
   <packaging>jar</packaging>
   <description>Plugins for Google Cloud Firestore</description>
