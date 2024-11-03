@@ -24,7 +24,7 @@ public interface FirestoreConstants {
   /**
    * Firestore plugin name.
    */
-  String PLUGIN_NAME = "Firestore";
+  String PLUGIN_NAME = "Quai-Firestore";
 
   /**
    * Configuration property name used to specify name of the database collection.

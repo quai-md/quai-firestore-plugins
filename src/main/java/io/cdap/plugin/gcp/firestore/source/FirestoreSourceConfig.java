@@ -104,7 +104,7 @@ public class FirestoreSourceConfig extends FirestoreConfig {
 
   /**
    * Constructor for FirestoreSourceConfig object.
-   * 
+   *
    * @param referenceName     the reference name
    * @param project           the project id
    * @param serviceFilePath   the service file path
@@ -200,7 +200,7 @@ public class FirestoreSourceConfig extends FirestoreConfig {
 
   /**
    * Return the Schema.
-   * 
+   *
    * @param collector the FailureCollector
    * @return The Schema
    */
@@ -330,7 +330,8 @@ public class FirestoreSourceConfig extends FirestoreConfig {
       case BYTES:
       case LONG:
       case NULL:
-        return;
+        case MAP:
+            return;
       case RECORD:
         validateSchema(fieldSchema, collector);
         return;
@@ -351,7 +352,7 @@ public class FirestoreSourceConfig extends FirestoreConfig {
         validateFieldSchema(fieldName, componentSchema, collector);
 
         return;
-      case UNION:
+        case UNION:
         fieldSchema.getUnionSchemas().forEach(unionSchema -> validateFieldSchema(fieldName, unionSchema, collector));
         return;
       default:

@@ -138,7 +138,11 @@ public class QueryDocumentSnapshotToRecordTransformer {
       case STRING:
         ensureTypeValid(fieldName, object, String.class);
         return object;
-      default:
+      case MAP:
+      case ARRAY:
+        case RECORD:
+            return object;
+        default:
         throw new UnexpectedFormatException(String.format("Field '%s' is of unsupported type '%s'", fieldName,
           fieldType.name().toLowerCase()));
     }
